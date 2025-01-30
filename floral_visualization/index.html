@@ -1,0 +1,258 @@
+<title>3D Vector Space Floral Visualization</title>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Arial', sans-serif;
+    overflow: hidden;
+    background-color: #000;
+    color: #fff;
+  }
+  #canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+  }
+  #ui {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 5px;
+  }
+  button, select {
+    background: #333;
+    color: #fff;
+    border: 1px solid #fff;
+    padding: 5px 10px;
+    margin: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  button:hover, select:hover {
+    background: #555;
+  }
+  #info {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    text-align: right;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 5px;
+  }
+  #equation {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="ui">
+  <button id="changeEquation">Change Equation</button>
+  <select id="colorScheme">
+    <option value="rainbow">Rainbow</option>
+    <option value="pastel">Pastel</option>
+    <option value="neon">Neon</option>
+  </select>
+  <button id="toggleRotation">Toggle Rotation</button>
+</div>
+<div id="info">
+  <p>3D Vector Space Floral Visualization</p>
+  <p>Drag to rotate | Scroll to zoom</p>
+</div>
+<div id="equation">
+  <p>Current Equation:</p>
+  <p id="equationText"></p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0x404040);
+scene.add(ambientLight);
+
+const pointLight = new THREE.PointLight(0xffffff, 1);
+pointLight.position.set(5, 5, 5);
+scene.add(pointLight);
+
+camera.position.z = 30;
+
+// Floral structure
+const floralGroup = new THREE.Group();
+scene.add(floralGroup);
+
+let currentEquation = 0;
+const equations = [
+  (u, v) => {
+    const x = Math.sin(u) * Math.cos(v);
+    const y = Math.sin(u) * Math.sin(v);
+    const z = Math.cos(u);
+    return new THREE.Vector3(x, y, z);
+  },
+  (u, v) => {
+    const x = Math.sin(u) * Math.cos(v) * (Math.exp(Math.cos(u)) - 2 * Math.cos(4 * u) - Math.pow(Math.sin(u / 12), 5));
+    const y = Math.sin(u) * Math.sin(v) * (Math.exp(Math.cos(u)) - 2 * Math.cos(4 * u) - Math.pow(Math.sin(u / 12), 5));
+    const z = Math.cos(u) * (Math.exp(Math.cos(u)) - 2 * Math.cos(4 * u) - Math.pow(Math.sin(u / 12), 5));
+    return new THREE.Vector3(x, y, z);
+  },
+  (u, v) => {
+    const x = Math.sin(u) * Math.cos(v) * Math.tan(u);
+    const y = Math.sin(u) * Math.sin(v) * Math.tan(v);
+    const z = Math.cos(u) * Math.cos(v);
+    return new THREE.Vector3(x, y, z);
+  }
+];
+
+const equationTexts = [
+  "x = sin(u) * cos(v)\ny = sin(u) * sin(v)\nz = cos(u)",
+  "x = sin(u) * cos(v) * (e^cos(u) - 2cos(4u) - sin^5(u/12))\ny = sin(u) * sin(v) * (e^cos(u) - 2cos(4u) - sin^5(u/12))\nz = cos(u) * (e^cos(u) - 2cos(4u) - sin^5(u/12))",
+  "x = sin(u) * cos(v) * tan(u)\ny = sin(u) * sin(v) * tan(v)\nz = cos(u) * cos(v)"
+];
+
+function updateEquationText() {
+  document.getElementById('equationText').innerText = equationTexts[currentEquation];
+}
+
+function createFlower() {
+  const geometry = new THREE.BufferGeometry();
+  const material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true });
+
+  const positions = [];
+  const colors = [];
+  const equation = equations[currentEquation];
+
+  for (let u = 0; u < Math.PI * 2; u += 0.02) {
+    for (let v = 0; v < Math.PI; v += 0.02) {
+      const vector = equation(u, v);
+      positions.push(vector.x * 10, vector.y * 10, vector.z * 10);
+
+      const color = new THREE.Color();
+      color.setHSL(u / (Math.PI * 2), 1, 0.5);
+      colors.push(color.r, color.g, color.b);
+    }
+  }
+
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+  const points = new THREE.Points(geometry, material);
+  floralGroup.add(points);
+}
+
+createFlower();
+updateEquationText();
+
+// UI Controls
+document.getElementById('changeEquation').addEventListener('click', () => {
+  currentEquation = (currentEquation + 1) % equations.length;
+  floralGroup.clear();
+  createFlower();
+  updateEquationText();
+});
+
+document.getElementById('colorScheme').addEventListener('change', (event) => {
+  const scheme = event.target.value;
+  const geometry = floralGroup.children[0].geometry;
+  const colors = geometry.attributes.color.array;
+
+  for (let i = 0; i < colors.length; i += 3) {
+    const u = (i / colors.length) * Math.PI * 2;
+    const color = new THREE.Color();
+
+    switch (scheme) {
+      case 'rainbow':
+        color.setHSL(u / (Math.PI * 2), 1, 0.5);
+        break;
+      case 'pastel':
+        color.setHSL(u / (Math.PI * 2), 0.3, 0.8);
+        break;
+      case 'neon':
+        color.setHSL(u / (Math.PI * 2), 1, 0.7);
+        break;
+    }
+
+    colors[i] = color.r;
+    colors[i + 1] = color.g;
+    colors[i + 2] = color.b;
+  }
+
+  geometry.attributes.color.needsUpdate = true;
+});
+
+let isRotating = true;
+document.getElementById('toggleRotation').addEventListener('click', () => {
+  isRotating = !isRotating;
+});
+
+// Animation
+function animate() {
+  requestAnimationFrame(animate);
+  
+  if (isRotating) {
+    floralGroup.rotation.y += 0.005;
+    floralGroup.rotation.x += 0.002;
+  }
+  
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// Controls
+let isDragging = false;
+let previousMousePosition = { x: 0, y: 0 };
+
+renderer.domElement.addEventListener('mousedown', (e) => {
+  isDragging = true;
+});
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  if (isDragging) {
+    const deltaMove = {
+      x: e.offsetX - previousMousePosition.x,
+      y: e.offsetY - previousMousePosition.y
+    };
+    
+    floralGroup.rotation.y += deltaMove.x * 0.005;
+    floralGroup.rotation.x += deltaMove.y * 0.005;
+  }
+  
+  previousMousePosition = {
+    x: e.offsetX,
+    y: e.offsetY
+  };
+});
+
+renderer.domElement.addEventListener('mouseup', (e) => {
+  isDragging = false;
+});
+
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  camera.position.z += e.deltaY * 0.05;
+  camera.position.z = Math.max(5, Math.min(camera.position.z, 100));
+});
+
+// Responsive design
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body></html>

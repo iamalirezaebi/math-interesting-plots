@@ -1,0 +1,239 @@
+<title>Interactive Eigenvector Visualization</title>
+<style>
+:root {
+  --gloggle-blue: #4285f4;
+
+}
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background: #202124;
+  color: #e8eaed;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: bold;
+  margin-right: 40px;
+  background: linear-gradient(45deg, var(--gloggle-blue), var(--gloggle-red), var(--gloggle-yellow), var(--gloggle-green));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.visualization-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.canvas-container {
+  position: relative;
+  width: 600px;
+  height: 600px;
+  background: #303134;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.controls {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  background: #303134;
+  border-radius: 8px;
+}
+
+button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  background: var(--gloggle-blue);
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #2b76f5;
+}
+
+.matrix-input {
+  display: grid;
+  grid-template-columns: repeat(2, 60px);
+  gap: 5px;
+  margin: 20px;
+}
+
+.matrix-input input {
+  width: 50px;
+  height: 30px;
+  text-align: center;
+  background: #404144;
+  border: 1px solid #5f6368;
+  color: #e8eaed;
+  border-radius: 4px;
+}
+
+.info-panel {
+  padding: 20px;
+  background: #303134;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Gloggle</div>
+  <h1>Interactive Eigenvector Visualization</h1>
+</div>
+
+<div class="visualization-container">
+  <div class="controls">
+    <div class="matrix-input">
+      <input type="number" id="a11" value="2" step="0.1">
+      <input type="number" id="a12" value="1" step="0.1">
+      <input type="number" id="a21" value="1" step="0.1">
+      <input type="number" id="a22" value="2" step="0.1">
+    </div>
+    <button id="calculate">Calculate Eigenvectors</button>
+    <button id="animate">Animate Transform</button>
+    <button id="reset">Reset</button>
+  </div>
+
+  <div class="canvas-container">
+    <svg id="visualization" width="600" height="600" viewBox="-10 -10 20 20">
+      <!-- Grid lines -->
+      <g id="grid" stroke="#404144" stroke-width="0.05"></g>
+      
+      <!-- Axes -->
+      <line x1="-10" y1="0" x2="10" y2="0" stroke="#666" stroke-width="0.1"/>
+      <line x1="0" y1="-10" x2="0" y2="10" stroke="#666" stroke-width="0.1"/>
+      
+      <!-- Unit circle -->
+      <circle cx="0" cy="0" r="1" fill="none" stroke="#666" stroke-width="0.1"/>
+      
+      <!-- Vectors will be added here dynamically -->
+      <g id="vectors"></g>
+      
+      <!-- Transformed shapes will be added here -->
+      <g id="transforms"></g>
+    </svg>
+  </div>
+
+  <div class="info-panel">
+    <h3>Current Matrix:</h3>
+    <div id="matrix-display"></div>
+    <h3>Eigenvalues:</h3>
+    <div id="eigenvalues"></div>
+    <h3>Eigenvectors:</h3>
+    <div id="eigenvectors"></div>
+  </div>
+</div>
+
+<script>
+// Initialize the grid
+function createGrid() {
+  const grid = document.getElementById('grid');
+  for(let i = -10; i <= 10; i++) {
+    // Vertical lines
+    grid.innerHTML += `<line x1="${i}" y1="-10" x2="${i}" y2="10"/>`;
+    // Horizontal lines
+    grid.innerHTML += `<line x1="-10" y1="${i}" x2="10" y2="${i}"/>`;
+  }
+}
+
+// Create vector element
+function createVector(x, y, color) {
+  const vectors = document.getElementById('vectors');
+  const vector = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  vector.setAttribute("x1", "0");
+  vector.setAttribute("y1", "0");
+  vector.setAttribute("x2", x);
+  vector.setAttribute("y2", -y); // SVG y-axis is inverted
+  vector.setAttribute("stroke", color);
+  vector.setAttribute("stroke-width", "0.1");
+  vector.setAttribute("marker-end", "url(#arrowhead)");
+  vectors.appendChild(vector);
+  return vector;
+}
+
+// Calculate eigenvalues and eigenvectors
+function calculateEigen() {
+  const a11 = parseFloat(document.getElementById('a11').value);
+  const a12 = parseFloat(document.getElementById('a12').value);
+  const a21 = parseFloat(document.getElementById('a21').value);
+  const a22 = parseFloat(document.getElementById('a22').value);
+
+  // Characteristic equation: det(A - λI) = 0
+  const trace = a11 + a22;
+  const det = a11 * a22 - a12 * a21;
+  
+  // Solve quadratic equation: λ² - trace·λ + det = 0
+  const discriminant = Math.sqrt(trace * trace - 4 * det);
+  const eigenvalue1 = (trace + discriminant) / 2;
+  const eigenvalue2 = (trace - discriminant) / 2;
+
+  // Calculate eigenvectors
+  const eigenvector1 = normalizeVector([-a12, a11 - eigenvalue1]);
+  const eigenvector2 = normalizeVector([-a12, a11 - eigenvalue2]);
+
+  // Display results
+  document.getElementById('eigenvalues').innerHTML = `
+    λ₁ = ${eigenvalue1.toFixed(2)}<br>
+    λ₂ = ${eigenvalue2.toFixed(2)}
+  `;
+  
+  document.getElementById('eigenvectors').innerHTML = `
+    v₁ = [${eigenvector1[0].toFixed(2)}, ${eigenvector1[1].toFixed(2)}]<br>
+    v₂ = [${eigenvector2[0].toFixed(2)}, ${eigenvector2[1].toFixed(2)}]
+  `;
+
+  // Visualize eigenvectors
+  document.getElementById('vectors').innerHTML = '';
+  createVector(eigenvector1[0], eigenvector1[1], 'var(--gloggle-blue)');
+  createVector(eigenvector2[0], eigenvector2[1], 'var(--gloggle-red)');
+}
+
+// Normalize a vector
+function normalizeVector(v) {
+  const magnitude = Math.sqrt(v[0] * v[0] + v[1] * v[1]);
+  return [v[0] / magnitude, v[1] / magnitude];
+}
+
+// Initialize visualization
+createGrid();
+
+// Add event listeners
+document.getElementById('calculate').addEventListener('click', calculateEigen);
+document.getElementById('animate').addEventListener('click', () => {
+  // Animation logic here
+  const vectors = document.getElementById('vectors');
+  vectors.style.transition = 'transform 1s';
+  vectors.style.transform = 'scale(2)';
+  setTimeout(() => {
+    vectors.style.transform = 'scale(1)';
+  }, 1000);
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  document.getElementById('vectors').innerHTML = '';
+  document.getElementById('eigenvalues').innerHTML = '';
+  document.getElementById('eigenvectors').innerHTML = '';
+});
+
+// Initialize with example calculation
+calculateEigen();
+</script>
+
+</body></html>

@@ -1,0 +1,227 @@
+<style>
+  body {
+    font-family: 'Courier New', monospace;
+    background: #2c3e50;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+  }
+
+  .calculator {
+    background: #95a5a6;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    width: 800px;
+    height: 600px;
+  }
+
+  #display {
+    background: #ecf0f1;
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 20px;
+    height: 400px;
+    position: relative;
+  }
+
+  #graph {
+    width: 100%;
+    height: 100%;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  button {
+    background: #34495e;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s;
+  }
+
+  button:hover {
+    background: #2c3e50;
+  }
+
+  #equation {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 1px solid #bdc3c7;
+  }
+</style>
+</head>
+<body>
+<div class="calculator">
+  <input type="text" id="equation" placeholder="Enter equation (e.g., x^2)">
+  <div id="display">
+    <canvas id="graph"></canvas>
+  </div>
+  <div class="controls">
+    <button onclick="zoomIn()">Zoom In</button>
+    <button onclick="zoomOut()">Zoom Out</button>
+    <button onclick="resetView()">Reset</button>
+    <button onclick="plot()">Plot</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.js"></script>
+<script>
+const canvas = document.getElementById('graph');
+const ctx = canvas.getContext('2d');
+let scale = 40; // pixels per unit
+let offsetX = 0;
+let offsetY = 0;
+
+function drawGrid() {
+  const width = canvas.width;
+  const height = canvas.height;
+  const unitsPerX = Math.floor(width / scale);
+  const unitsPerY = Math.floor(height / scale);
+  
+  ctx.beginPath();
+  ctx.strokeStyle = '#bdc3c7';
+  ctx.lineWidth = 0.5;
+  
+  // Vertical grid lines
+  for(let i = -Math.floor(unitsPerX/2); i <= Math.floor(unitsPerX/2); i++) {
+    ctx.moveTo(i * scale, -height/2);
+    ctx.lineTo(i * scale, height/2);
+  }
+  
+  // Horizontal grid lines
+  for(let i = -Math.floor(unitsPerY/2); i <= Math.floor(unitsPerY/2); i++) {
+    ctx.moveTo(-width/2, i * scale);
+    ctx.lineTo(width/2, i * scale);
+  }
+  
+  ctx.stroke();
+}
+
+function drawAxisNumbers() {
+  ctx.font = '12px Arial';
+  ctx.fillStyle = '#2c3e50';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  // X-axis numbers
+  const width = canvas.width;
+  const height = canvas.height;
+  const unitsPerX = Math.floor(width / scale);
+  const unitsPerY = Math.floor(height / scale);
+  
+  // Draw X-axis numbers
+  for(let i = -Math.floor(unitsPerX/2); i <= Math.floor(unitsPerX/2); i++) {
+    if(i !== 0) { // Skip zero to avoid overlapping with y-axis
+      ctx.fillText(i.toString(), i * scale, 15);
+    }
+  }
+  
+  // Draw Y-axis numbers
+  ctx.textAlign = 'right';
+  for(let i = -Math.floor(unitsPerY/2); i <= Math.floor(unitsPerY/2); i++) {
+    if(i !== 0) { // Skip zero to avoid overlapping with x-axis
+      ctx.fillText((-i).toString(), -10, i * scale);
+    }
+  }
+}
+
+function initCanvas() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  const width = canvas.width;
+  const height = canvas.height;
+  
+  // Set the origin to the center
+  ctx.translate(width/2, height/2);
+  
+  // Clear the canvas
+  ctx.clearRect(-width/2, -height/2, width, height);
+  
+  // Draw grid
+  drawGrid();
+  
+  // Draw axes
+  ctx.beginPath();
+  ctx.strokeStyle = '#7f8c8d';
+  ctx.lineWidth = 2;
+  ctx.moveTo(-width/2, 0);
+  ctx.lineTo(width/2, 0);
+  ctx.moveTo(0, -height/2);
+  ctx.lineTo(0, height/2);
+  ctx.stroke();
+  
+  // Draw axis numbers
+  drawAxisNumbers();
+}
+
+function plot() {
+  initCanvas();
+  const equation = document.getElementById('equation').value;
+  const parser = math.parser();
+  
+  ctx.beginPath();
+  ctx.strokeStyle = '#e74c3c';
+  ctx.lineWidth = 2;
+  
+  const width = canvas.width;
+  let isFirst = true;
+  
+  for(let pixelX = -width/2; pixelX < width/2; pixelX++) {
+    const x = pixelX / scale;
+    try {
+      const y = -parser.evaluate(equation.replace(/x/g, `(${x})`)) * scale;
+      if(isFirst) {
+        ctx.moveTo(pixelX, y);
+        isFirst = false;
+      } else {
+        ctx.lineTo(pixelX, y);
+      }
+    } catch(e) {
+      continue;
+    }
+  }
+  ctx.stroke();
+}
+
+function zoomIn() {
+  scale *= 1.2;
+  plot();
+}
+
+function zoomOut() {
+  scale /= 1.2;
+  plot();
+}
+
+function resetView() {
+  scale = 40;
+  plot();
+}
+
+// Initial setup
+window.onload = () => {
+  initCanvas();
+  document.getElementById('equation').value = 'x^2';
+  plot();
+};
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  initCanvas();
+  plot();
+});
+</script>
+</body></html>
